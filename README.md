@@ -37,7 +37,24 @@ macOS 菜单栏休息提醒工具。不是番茄钟：白领不缺专注，缺�
 | 时长 | 专注 / 短休息 / 长休息 / 长休间隔（可手动输入，带 4 个常用值） |
 | 提醒 | 气泡倒计时、结束保护（可设置）、提示音、立即休息 |
 | 行为 | 外观（系统 / 浅色 / 深色）、自动开始休息、自动开始下一轮、休息时全屏、承诺模式 |
-| 关于 | 今天 / 近 7 天 / 累计休息次数、版本、退出 |
+| 关于 | 今天 / 近 7 天 / 累计休息次数、版本（检查与安装更新）、退出 |
+
+## 自动更新
+
+- 启动 5 秒后检查一次，之后每 6 小时检查一次 GitHub 最新正式发布
+- 有新版本时，菜单栏图标、浮窗齿轮、设置「关于」标签和「版本」行出现红点
+- 点「版本」行弹窗：**立即更新**＝下载 DMG、校验 Bundle ID 与版本号、替换当前应用并自动重启（失败自动回滚）；**稍后提醒**＝24 小时内不再显示红点，期间若发布了更新的版本则立即提示
+- 应用不在可写位置（如直接从 DMG 运行）时，会打开安装包让用户手动拖入
+
+**发布新版本**（更新通道依赖以下约定）：
+
+```bash
+# 1. 改 Resources/Info.plist 的 CFBundleShortVersionString，如 0.2.0
+./Scripts/package_dmg.sh                       # 产出 dist/ChillTimer-0.2.0.dmg
+gh release create v0.2.0 dist/ChillTimer-0.2.0.dmg --title "v0.2.0" --notes "更新说明"
+```
+
+tag 必须是 `v<版本号>`、附件名必须是 `ChillTimer-<版本号>.dmg`，且与包内 Info.plist 版本一致，否则客户端会拒绝安装。
 
 ## 默认节奏
 
@@ -63,6 +80,7 @@ Sources/ChillTimer/
   TimerEngine.swift      状态机（idle / running / paused / waitingBreak / resting / waitingWork + 周期）
   Models.swift           动作内容库 + 编排算法（平台无关，可复用到 Windows 端）
   WindowManager.swift    气泡面板 / 每屏一个全屏休息窗口
+  UpdateChecker.swift    版本巡检、红点、稍后提醒、下载安装与重启
   Theme.swift            设计令牌（随外观切换的语义色）+ 环形进度 / 圆形按钮 / 胶囊按钮
   TimerCardView.swift    计时卡片
   MenuView.swift         菜单栏浮窗（卡片 ⇄ 设置）
@@ -81,4 +99,4 @@ Scripts/
 
 ## 隐私
 
-零权限：不联网、不读取屏幕、不用摄像头与辅助功能权限，所有数据只存在本机。
+零权限：不读取屏幕、不用摄像头与辅助功能权限，所有数据只存在本机。唯一的网络访问是检查更新时请求 GitHub（不上传任何数据）。

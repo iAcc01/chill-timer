@@ -19,6 +19,7 @@ struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var engine: TimerEngine
     @ObservedObject private var stats = StatsStore.shared
+    @ObservedObject private var updater = UpdateChecker.shared
 
     /// 当前分段与子页：提升到浮窗层持有，避免切换外观重绘浮窗时被重置
     @Binding var tab: Tab
@@ -42,7 +43,8 @@ struct SettingsView: View {
                                selection: Binding(
                                    get: { Tab.allCases.firstIndex(of: tab) ?? 0 },
                                    set: { tab = Tab.allCases[$0] }
-                               ))
+                               ),
+                               badges: updater.showBadge ? [Tab.allCases.firstIndex(of: .about) ?? 3] : [])
                 content
             case .stepper(let target):
                 StepperBody(target: target)
@@ -95,6 +97,7 @@ struct SettingsView: View {
 private struct CapsuleSegment: View {
     let options: [String]
     @Binding var selection: Int
+    var badges: Set<Int> = []
 
     var body: some View {
         HStack(spacing: 4) {
@@ -111,6 +114,11 @@ private struct CapsuleSegment: View {
                             Capsule().fill(index == selection ? AnyShapeStyle(Design.surface) : AnyShapeStyle(Color.clear))
                         )
                         .contentShape(Capsule())
+                        .overlay(alignment: .topTrailing) {
+                            if badges.contains(index) {
+                                BadgeDot(size: 6).offset(x: -6, y: 3)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
             }
@@ -414,6 +422,57 @@ private struct BehaviorPage: View {
     }
 }
 
+// MARK: - 版本行（关于页）
+
+private struct VersionRow: View {
+    @ObservedObject private var updater = UpdateChecker.shared
+
+    var body: some View {
+        Button {
+            if updater.latest != nil {
+                updater.presentDialog()
+            } else {
+                Task { await updater.check(manual: true) }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text("版本")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Design.text.opacity(0.85))
+                Spacer()
+                if let latest = updater.latest {
+                    if updater.showBadge { BadgeDot(size: 6) }
+                    Text("新版本 v\(latest.version)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Design.brand)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Design.text.opacity(0.35))
+                } else if updater.checking {
+                    ProgressView().controlSize(.mini)
+                    Text("检查中…")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Design.text.opacity(0.45))
+                } else {
+                    if let message = updater.checkMessage {
+                        Text(message)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Design.text.opacity(0.45))
+                    }
+                    Text("v\(updater.currentVersion)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Design.text)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(updater.latest != nil ? "更新到新版本" : "检查更新")
+    }
+}
+
 // MARK: - 关于页
 
 private struct AboutPage: View {
@@ -430,7 +489,7 @@ private struct AboutPage: View {
             }
 
             RowGroup {
-                SettingRow(title: "版本", value: "0.1.0")
+                VersionRow()
                 rowDivider()
                 SettingRow(title: "隐私", value: "数据全部在本机")
             }
@@ -439,7 +498,7 @@ private struct AboutPage: View {
                 SettingRow(title: "退出 Chill Timer", value: "", chevron: true) { NSApp.terminate(nil) }
             }
 
-            Text("不联网、不读取屏幕内容、不需要摄像头权限。")
+            Text("仅在检查更新时访问 GitHub，不上传任何数据；不读取屏幕内容、不需要摄像头权限。")
                 .font(.caption)
                 .foregroundStyle(Design.text.opacity(0.35))
                 .padding(.horizontal, 6)

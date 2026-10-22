@@ -6,6 +6,7 @@ import SwiftUI
 struct TimerCardView: View {
     @EnvironmentObject var engine: TimerEngine
     @EnvironmentObject var settings: AppSettings
+    @ObservedObject private var updater = UpdateChecker.shared
 
     var showFooterButtons = true   // 菜单栏浮窗与主窗口共用；气泡等场景可关
     var onSettings: () -> Void = {}
@@ -121,6 +122,9 @@ struct TimerCardView: View {
 
             CircleIconButton(systemName: "gearshape") {
                 onSettings()
+            }
+            .overlay(alignment: .topTrailing) {
+                if updater.showBadge { BadgeDot().offset(x: -1, y: 1) }
             }
             .help("设置")
         }
